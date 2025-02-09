@@ -1,39 +1,32 @@
-const handleUrlUpload = async (url) => {
+const handleUrlUpload = async (url, tier) => {
   try {
-    // Ensure URL starts with http/https
+    // Basic URL formatting
     let formattedUrl =
       url.startsWith("http://") || url.startsWith("https://")
         ? url
         : `https://${url}`;
 
     // Validate using the URL constructor
-    const urlObject = new URL(formattedUrl);
+    new URL(formattedUrl);
 
-    // Ensure hostname exists
-    if (!urlObject.hostname) {
-      throw new Error("Invalid URL: missing hostname");
+    // Make API call to the appropriate endpoint based on tier
+    const endpoint = `/api/${tier}`;
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ url: formattedUrl }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`API returned status: ${response.status}`);
     }
 
-    // Try fetching the website to verify it exists
-    try {
-      // Try HEAD request first
-      let response = await fetch(formattedUrl, { method: "HEAD" });
-
-      // If HEAD fails, try GET as fallback
-      if (!response.ok) {
-        response = await fetch(formattedUrl);
-      }
-
-      if (!response.ok) {
-        throw new Error(`Website returned status: ${response.status}`);
-      }
-
-      return formattedUrl;
-    } catch (fetchError) {
-      throw new Error("Website could not be reached");
-    }
+    const data = await response.json();
+    return data;
   } catch (error) {
-    console.error("Invalid URL:", error.message);
+    console.error("Error:", error.message);
     return false;
   }
 };

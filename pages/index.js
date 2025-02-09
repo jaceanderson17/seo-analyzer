@@ -7,10 +7,11 @@ import { toast } from "react-toastify";
 
 export default function Home() {
   const [url, setUrl] = useState("");
+  const [selectedPlan, setSelectedPlan] = useState("basic");
 
   const handleSearch = async (urlSearch) => {
     if (urlSearch.length != 0) {
-      const url = await handleUrlUpload(urlSearch);
+      const url = await handleUrlUpload(urlSearch, selectedPlan);
       toast.error("Sorry, the url you attempted to optimize is not valid");
       return;
     } else {
@@ -45,12 +46,57 @@ export default function Home() {
               />
               <Button onClick={() => handleSearch(url)}>Search</Button>
             </SearchBar>
+            <PlanOptions>
+              <PlanButton
+                selected={selectedPlan === "basic"}
+                onClick={() => setSelectedPlan("basic")}
+              >
+                Basic
+              </PlanButton>
+              <PlanButton
+                selected={selectedPlan === "standard"}
+                onClick={() => setSelectedPlan("standard")}
+              >
+                Standard
+              </PlanButton>
+              <PlanButton
+                selected={selectedPlan === "premium"}
+                onClick={() => setSelectedPlan("premium")}
+              >
+                Premium
+              </PlanButton>
+            </PlanOptions>
           </ContentWrapper>
         </Container>
       </PageContainer>
     </>
   );
 }
+const PlanOptions = styled.div`
+  display: flex;
+  gap: 16px;
+  margin-top: 20px;
+`;
+
+const PlanButton = styled.button`
+  padding: 12px 24px;
+  border: 2px solid #3498db;
+  border-radius: 4px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: ${(props) => (props.selected ? "#3498db" : "transparent")};
+  color: ${(props) => (props.selected ? "white" : "#3498db")};
+
+  &:hover {
+    background: ${(props) => (props.selected ? "#2980b9" : "#ebf5ff")};
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+`;
 
 const Container = styled.div`
   display: flex;
