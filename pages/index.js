@@ -1,8 +1,24 @@
 import styled from "styled-components";
 import Head from "next/head";
 import PageContainer from "@/Components/PageContainer";
+import { useState } from "react";
+import handleUrlUpload from "@/utils/handleUrlUpload";
+import { toast } from "react-toastify";
 
 export default function Home() {
+  const [url, setUrl] = useState("");
+
+  const handleSearch = async (urlSearch) => {
+    if (urlSearch.length != 0) {
+      const url = await handleUrlUpload(urlSearch);
+      toast.error("Sorry, the url you attempted to optimize is not valid");
+      return;
+    } else {
+      toast.error("Please enter a url to optimize");
+      return;
+    }
+  };
+
   return (
     <>
       <Head>
@@ -21,8 +37,13 @@ export default function Home() {
               of recommendations to improve your SEO.
             </SubHeader>
             <SearchBar>
-              <Input placeholder="Enter website URL..." />
-              <Button>Search</Button>
+              <Input
+                onChange={(e) => {
+                  setUrl(e.target.value);
+                }}
+                placeholder="Enter website URL..."
+              />
+              <Button onClick={() => handleSearch(url)}>Search</Button>
             </SearchBar>
           </ContentWrapper>
         </Container>
@@ -81,11 +102,12 @@ const Input = styled.input`
 
 const Button = styled.button`
   padding: 12px 24px;
+  font-size: 16px;
   border: none;
   border-radius: 4px;
-  background-color: blue;
-  color: white;
-  font-weight: 500;
+  background-color: #2c3e50;
+  color: #f5f6fa;
+  font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s;
 
