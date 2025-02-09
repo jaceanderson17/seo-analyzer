@@ -4,7 +4,7 @@ import cheerio from "cheerio";
 const basic = async (req, res) => {
   try {
     // Try HEAD request first
-    const { data } = await axios.get(url);
+    const { data } = await axios.get(req.body.url);
 
     const $ = cheerio.load(data);
 

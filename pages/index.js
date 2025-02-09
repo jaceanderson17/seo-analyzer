@@ -10,12 +10,24 @@ export default function Home() {
   const [selectedPlan, setSelectedPlan] = useState("basic");
 
   const handleSearch = async (urlSearch) => {
-    if (urlSearch.length != 0) {
-      const url = await handleUrlUpload(urlSearch, selectedPlan);
-      toast.error("Sorry, the url you attempted to optimize is not valid");
-      return;
-    } else {
+    if (urlSearch.length === 0) {
       toast.error("Please enter a url to optimize");
+      return;
+    }
+
+    if (selectedPlan === "premium") {
+      const isChrome =
+        /Chrome/.test(navigator.userAgent) &&
+        /Google Inc/.test(navigator.vendor);
+      if (!isChrome) {
+        toast.error("Premium plan requires Google Chrome browser");
+        return;
+      }
+    }
+
+    const result = await handleUrlUpload(urlSearch, selectedPlan);
+    if (!result) {
+      toast.error("Sorry, the url you attempted to optimize is not valid");
       return;
     }
   };
