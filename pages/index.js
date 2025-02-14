@@ -1,6 +1,8 @@
 import styled from "styled-components";
 import Head from "next/head";
 import PageContainer from "@/Components/PageContainer";
+import Score from "@/Components/Score";
+import Results from "@/Components/Results";
 import { useState, useEffect } from "react";
 import handleUrlUpload from "@/utils/handleUrlUpload";
 import { toast } from "react-toastify";
@@ -28,6 +30,7 @@ export default function Home() {
       toast.error("Sorry, the url you attempted to optimize is not valid");
       return;
     }
+    console.log(result);
     setResults(result);
     setShowResults(true);
   };
@@ -78,6 +81,12 @@ export default function Home() {
                 Premium
               </PlanButton>
             </PlanOptions>
+            {showResults && (
+              <>
+                <Score score={results.score} />
+                <Results improvements={results.improvements} />
+              </>
+            )}
           </ContentWrapper>
         </Container>
       </PageContainer>

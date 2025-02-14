@@ -6,243 +6,347 @@ const standard = async (req, res) => {
     let score = 0;
 
     // Utility function to add improvements with fixes
-    const addFix = (issue, fix) => improvements.push({ issue, fix });
+    const addFix = (issue, fix, potentialGain) =>
+      improvements.push({ issue, fix, potentialGain });
 
+    // Launch Puppeteer
     const browser = await puppeteer.launch({ headless: true });
     const page = await browser.newPage();
     await page.goto(req.body.url, { waitUntil: "networkidle2" });
 
-    // **Title Tag** (10 points)
+    // --- Title Tag (12 points) ---
+    //  - 6 points if <title> is present
+    //  - additional 6 points if length is 45-70 chars
+    const titleMax = 12;
+    let titlePoints = 0;
+
     const title = await page.evaluate(() => document.title);
     if (title) {
-      score += 5;
-      if (title.length < 45 || title.length > 70) {
+      titlePoints += 6; // has a title
+      if (title.length >= 45 && title.length <= 70) {
+        titlePoints += 6;
+      } else {
         addFix(
           "Title should be between 45 and 70 characters.",
-          "Update the title tag to a concise, keyword-rich title."
+          "Update the title tag to a concise, keyword-rich title.",
+          6
         );
-      } else {
-        score += 5;
       }
     } else {
       addFix(
         "No title found.",
-        "Add a `<title>Your Page Title</title>` inside the `<head>` section."
+        "Add a `<title>Your Page Title</title>` inside the `<head>` section.",
+        12
       );
     }
+    score += titlePoints;
 
-    // **Meta Description** (10 points)
+    // --- Meta Description (10 points) ---
+    //  - 5 points if present
+    //  - additional 5 if between 145-165 chars
+    const metaDescMax = 10;
+    let metaDescPoints = 0;
+
     const description = await page.evaluate(() => {
       const meta = document.querySelector('meta[name="description"]');
       return meta ? meta.getAttribute("content") : null;
     });
     if (description) {
-      score += 5;
-      if (description.length < 145 || description.length > 165) {
-        addFix(
-          "Meta description should be between 145 and 165 characters.",
-          "Refine the meta description to be clear, concise, and within the ideal character range."
-        );
+      metaDescPoints += 5;
+      if (description.length >= 145 && description.length <= 165) {
+        metaDescPoints += 5;
       } else {
-        score += 5;
+        addFix(
+          "Meta description should be 145-165 characters long.",
+          "Refine the meta description to be clear, concise, and within the ideal range.",
+          5
+        );
       }
     } else {
       addFix(
         "No description found.",
-        `Add: \n\`<meta name="description" content="Your optimized description here." />\` inside the <head>.`
+        "Add a `<meta name='description' content='Your description here.' />` in the <head>.",
+        10
       );
     }
+    score += metaDescPoints;
 
-    // **Keywords Meta Tag** (5 points)
+    // --- Keywords Meta Tag (2 points) ---
+    //  - 1 point if present
+    //  - additional 1 if 3-10 keywords
+    const keywordsMax = 2;
+    let keywordsPoints = 0;
+
     const keywords = await page.evaluate(() => {
       const meta = document.querySelector('meta[name="keywords"]');
       return meta ? meta.getAttribute("content") : null;
     });
     if (keywords) {
-      score += 2;
-      const numWords = keywords.split(" ").length;
-      if (numWords < 3 || numWords > 10) {
-        addFix(
-          "Keywords should have between 3 and 10 words.",
-          "Optimize keywords for relevance and avoid keyword stuffing."
-        );
+      keywordsPoints += 1;
+      const numWords = keywords
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean).length;
+      if (numWords >= 3 && numWords <= 10) {
+        keywordsPoints += 1;
       } else {
-        score += 3;
+        addFix(
+          "Keywords meta tag should have 3 to 10 relevant keywords.",
+          "Optimize keywords for relevance and avoid keyword stuffing.",
+          1
+        );
       }
     } else {
       addFix(
         "No keywords found.",
-        `Add: \n\`<meta name="keywords" content="your, optimized, keywords">\` inside the <head>.`
+        "Add `<meta name='keywords' content='your, optimized, keywords'>` in the <head>.",
+        2
       );
     }
+    score += keywordsPoints;
 
-    // **H1 Tags** (10 points)
+    // --- H1 Tag (10 points) ---
+    //  - 10 points if exactly one H1; 0 otherwise
+    const h1Max = 10;
+    let h1Points = 0;
+
     const h1Count = await page.evaluate(
       () => document.querySelectorAll("h1").length
     );
     if (h1Count === 1) {
-      score += 10;
+      h1Points = 10;
     } else if (h1Count === 0) {
       addFix(
         "No H1 tag found.",
-        "Add an H1 heading at the top of your content: `<h1>Your Main Heading</h1>`."
+        "Add an H1 heading at the top of your content: `<h1>Your Main Heading</h1>`.",
+        10
       );
     } else {
       addFix(
         "Multiple H1 tags found.",
-        "Each page should have only **one** H1 tag. Convert secondary H1s to H2 or H3 tags."
+        "Each page should have only **one** H1 tag. Convert secondary H1s to H2 or H3 tags.",
+        10
       );
     }
+    score += h1Points;
 
-    // **Image Alt Tags** (10 points)
+    // --- Image Alt Tags (6 points) ---
+    //  - 6 points if no images missing alt
+    const imageAltMax = 6;
+    let imageAltPoints = 0;
+
     const imagesWithoutAlt = await page.evaluate(
       () => document.querySelectorAll("img:not([alt])").length
     );
     if (imagesWithoutAlt === 0) {
-      score += 10;
+      imageAltPoints = 6;
     } else {
       addFix(
         `${imagesWithoutAlt} images lack alt text.`,
-        `Add alt attributes: \n\`<img src="image.jpg" alt="Describe the image here">\``
+        "Add alt attributes: `<img src='image.jpg' alt='describe the image here'>`",
+        6
       );
     }
+    score += imageAltPoints;
 
-    // **Canonical Tag** (5 points)
+    // --- Canonical Tag (4 points) ---
+    //  - 4 points if present
+    const canonicalMax = 4;
+    let canonicalPoints = 0;
+
     const canonical = await page.evaluate(() => {
       const link = document.querySelector('link[rel="canonical"]');
       return link ? link.getAttribute("href") : null;
     });
     if (canonical) {
-      score += 5;
+      canonicalPoints = 4;
     } else {
       addFix(
         "Missing canonical tag.",
-        `Add: \n\`<link rel="canonical" href="https://yourwebsite.com/your-page">\` to the <head>.`
+        "Add `<link rel='canonical' href='https://yoursite.com/page'>` in the <head>.",
+        4
       );
     }
+    score += canonicalPoints;
 
-    // **Robots Meta Tag** (5 points)
+    // --- Robots Meta (4 points) ---
+    //  - 4 points if not set to 'noindex'
+    const robotsMax = 4;
+    let robotsPoints = 0;
+
     const robotsMeta = await page.evaluate(() => {
       const meta = document.querySelector('meta[name="robots"]');
       return meta ? meta.getAttribute("content") : null;
     });
-    if (!robotsMeta || robotsMeta.toLowerCase() !== "noindex") {
-      score += 5;
+    // If there's no meta or it's not "noindex"
+    if (!robotsMeta || !robotsMeta.toLowerCase().includes("noindex")) {
+      robotsPoints = 4;
     } else {
       addFix(
         "Your page is set to 'noindex'.",
-        "Ensure this is intentional, otherwise change it to `<meta name='robots' content='index, follow'>`."
+        "Remove or change to `<meta name='robots' content='index, follow'>` if indexing is desired.",
+        4
       );
     }
+    score += robotsPoints;
 
-    // **Viewport Meta Tag** (10 points)
+    // --- Viewport Meta Tag (10 points) ---
+    //  - 10 points if present
+    const viewportMax = 10;
+    let viewportPoints = 0;
+
     const viewport = await page.evaluate(() => {
       const meta = document.querySelector('meta[name="viewport"]');
       return meta ? meta.getAttribute("content") : null;
     });
     if (viewport) {
-      score += 10;
+      viewportPoints = 10;
     } else {
       addFix(
         "Missing viewport meta tag.",
-        `Add: \n\`<meta name="viewport" content="width=device-width, initial-scale=1.0">\` to support mobile devices.`
+        "Add `<meta name='viewport' content='width=device-width, initial-scale=1.0'>` for mobile responsiveness.",
+        10
       );
     }
+    score += viewportPoints;
 
-    // **URL Length Check** (5 points)
+    // --- URL Length Check (5 points) ---
+    //  - 5 points if <= 75 chars
+    const urlLengthMax = 5;
+    let urlLengthPoints = 0;
+
     const urlLength = req.body.url.length;
-    if (urlLength > 75) {
+    if (urlLength <= 75) {
+      urlLengthPoints = 5;
+    } else {
       addFix(
         "URL is too long",
-        "Consider shortening the URL. Ideal URLs are under 75 characters."
+        "Consider shortening it to under ~75 characters for readability and SEO.",
+        5
       );
-    } else {
-      score += 5;
     }
+    score += urlLengthPoints;
 
-    // **Header Structure Check** (5 points)
+    // --- Header Structure Check (4 points) ---
+    //  - 4 points if at least one H2
+    const headerStructureMax = 4;
+    let headerStructurePoints = 0;
+
     const h2Count = await page.evaluate(
       () => document.querySelectorAll("h2").length
     );
-    if (h2Count === 0) {
+    if (h2Count > 0) {
+      headerStructurePoints = 4;
+    } else {
       addFix(
         "No H2 tags found",
-        "Add H2 subheadings to structure your content better."
+        "Add H2 subheadings to better structure your content.",
+        4
       );
-    } else {
-      score += 5;
     }
+    score += headerStructurePoints;
 
-    // **Internal Links Check** (5 points)
-    const internalLinks = await page.evaluate((url) => {
+    // --- Internal Links Check (10 points) ---
+    //  - 10 points if >= 1 internal link
+    const internalLinksMax = 10;
+    let internalLinksPoints = 0;
+
+    const internalLinks = await page.evaluate((baseUrl) => {
       const links = Array.from(document.querySelectorAll("a"));
       return links.filter((link) => {
         const href = link.href;
-        return href.startsWith("/") || href.startsWith(url);
+        return href.startsWith("/") || href.startsWith(baseUrl);
       }).length;
     }, req.body.url);
-    if (internalLinks === 0) {
+
+    if (internalLinks > 0) {
+      internalLinksPoints = 10;
+    } else {
       addFix(
         "No internal links found",
-        "Add internal links to improve site navigation and SEO."
+        "Add internal links to improve site navigation, distribute link equity, and help crawlers.",
+        10
       );
-    } else {
-      score += 5;
     }
+    score += internalLinksPoints;
 
-    // **External Links Check** (5 points)
+    // --- External Links Check (2 points) ---
+    //  - 2 points if >= 1 external link
+    const externalLinksMax = 2;
+    let externalLinksPoints = 0;
+
     const externalLinks = await page.evaluate(() => {
-      const links = Array.from(document.querySelectorAll('a[href^="http"]'));
-      return links.length;
+      return Array.from(document.querySelectorAll('a[href^="http"]')).length;
     });
-    if (externalLinks === 0) {
+    if (externalLinks > 0) {
+      externalLinksPoints = 2;
+    } else {
       addFix(
         "No external links found",
-        "Consider adding relevant external links to authoritative sources."
+        "Consider adding relevant external links to authoritative sources.",
+        2
       );
-    } else {
-      score += 5;
     }
+    score += externalLinksPoints;
 
-    // **Content Length Check** (5 points)
+    // --- Content Length Check (15 points) ---
+    //  - 15 points if >= 300 words
+    const contentLengthMax = 15;
+    let contentLengthPoints = 0;
+
     const wordCount = await page.evaluate(() => {
       const bodyText = document.body.innerText.trim();
       return bodyText.split(/\s+/).length;
     });
-    if (wordCount < 300) {
+    if (wordCount >= 300) {
+      contentLengthPoints = 15;
+    } else {
       addFix(
         "Content length is too short",
-        "Add more content. Most SEO-friendly pages have at least 300 words."
+        "Add more in-depth content. Generally aim for at least 300 words, but more for competitive niches.",
+        15
       );
-    } else {
-      score += 5;
     }
+    score += contentLengthPoints;
 
-    // **SSL Check** (5 points)
-    if (!req.body.url.startsWith("https")) {
+    // --- SSL (5 points) ---
+    //  - 5 points if page uses HTTPS
+    const sslMax = 5;
+    let sslPoints = 0;
+
+    if (req.body.url.startsWith("https")) {
+      sslPoints = 5;
+    } else {
       addFix(
         "Site not using HTTPS",
-        "Consider switching to HTTPS for better security and SEO."
+        "Migrate to HTTPS for better security and a minor SEO boost.",
+        5
       );
-    } else {
-      score += 5;
     }
+    score += sslPoints;
 
-    // **Language Declaration Check** (5 points)
+    // --- Language Declaration Check (1 point) ---
+    //  - 1 point if <html lang="..."> is present
+    const languageMax = 1;
+    let languagePoints = 0;
+
     const htmlLang = await page.evaluate(() => {
       const html = document.querySelector("html");
       return html ? html.getAttribute("lang") : null;
     });
-    if (!htmlLang) {
+    if (htmlLang) {
+      languagePoints = 1;
+    } else {
       addFix(
         "Missing language declaration",
-        "Add lang attribute to HTML tag: `<html lang='en'>`"
+        "Add `lang` attribute to HTML: `<html lang='en'>`.",
+        1
       );
-    } else {
-      score += 5;
     }
+    score += languagePoints;
 
     await browser.close();
+
     res.status(200).json({ score, improvements });
   } catch (error) {
     console.error("Error analyzing website:", error);
